@@ -1,6 +1,6 @@
+#[allow(unused_imports)]
 use std::io::BufRead;
 use std::io::BufReader;
-#[allow(unused_imports)]
 use std::io::Write;
 use std::net::TcpListener;
 use std::net::TcpStream;
@@ -27,14 +27,22 @@ fn handle_client(mut stream: TcpStream){
     let buf_reader = BufReader::new(&stream);
     let request_line = buf_reader.lines().next().unwrap().unwrap();
 
-    let status_line = if request_line == "GET / HTTP/1.1" {
+    let uri = request_line.split_whitespace().nth(1).unwrap();
+    let status_line = if uri == "/" {
+        "HTTP/1.1 200 OK"
+    } else if uri.starts_with("/echo") {
         "HTTP/1.1 200 OK"
     } else {
         "HTTP/1.1 404 Not Found"
     };
 
-    let response = format!("{status_line}\r\n\r\n");
+    let request_uri: &str = request_line.split_whitespace().nth(1).unwrap();
+    let uri_params: &str = request_uri.split("/").nth(2).unwrap_or("");
+
+    let length = uri_params.len();
+
+    let response =
+        format!("{status_line}\r\nContent-Type: text/plain\r\nContent-Length: {length}\r\n\r\n{uri_params}");
 
     stream.write_all(response.as_bytes()).unwrap();
-    
 }
