@@ -1,3 +1,5 @@
+use std::io::BufRead;
+use std::io::BufReader;
 #[allow(unused_imports)]
 use std::io::Write;
 use std::net::TcpListener;
@@ -22,6 +24,13 @@ fn main() {
 
 fn handle_client(mut stream: TcpStream){
     println!("accepted new connection");
-    let resp = "HTTP/1.1 200 OK\r\n\r\n";
-    stream.write_all(resp.as_bytes()).unwrap();
+    let buf_reader = BufReader::new(&stream);
+    let request_line = buf_reader.lines().next().unwrap().unwrap();
+    if request_line == "GET /index.html HTTP/1.1" {
+        let resp = "HTTP/1.1 200 OK\r\n\r\n";
+        stream.write_all(resp.as_bytes()).unwrap();
+    } else {
+        let resp = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+        stream.write_all(resp.as_bytes()).unwrap();
+    }
 }
