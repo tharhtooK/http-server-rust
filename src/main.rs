@@ -26,11 +26,15 @@ fn handle_client(mut stream: TcpStream){
     println!("accepted new connection");
     let buf_reader = BufReader::new(&stream);
     let request_line = buf_reader.lines().next().unwrap().unwrap();
-    if request_line == "GET /index.html HTTP/1.1" {
-        let resp = "HTTP/1.1 200 OK\r\n\r\n";
-        stream.write_all(resp.as_bytes()).unwrap();
+
+    let status_line = if request_line == "GET / HTTP/1.1" {
+        "HTTP/1.1 200 OK"
     } else {
-        let resp = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
-        stream.write_all(resp.as_bytes()).unwrap();
-    }
+        "HTTP/1.1 404 Not Found"
+    };
+
+    let response = format!("{status_line}\r\n\r\n");
+
+    stream.write_all(response.as_bytes()).unwrap();
+    
 }
