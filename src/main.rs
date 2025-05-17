@@ -1,4 +1,9 @@
-use std::{io::{BufRead, BufReader, Write},net::{TcpListener, TcpStream}, thread};
+use std::{
+    io::{BufRead, BufReader, Write, Error},
+    net::{TcpListener, TcpStream}, 
+    thread,
+    fs,
+};
 #[allow(unused_imports)]
 
 fn main() {
@@ -18,6 +23,11 @@ fn main() {
             }
         }
     }
+}
+
+fn read_file(file_name: &str) -> Result<String, Error> {
+    let file_path = format!("/tmp/{file_name}");
+    fs::read_to_string(file_path)
 }
 
 fn handle_client(mut stream: TcpStream){
@@ -48,14 +58,24 @@ fn handle_client(mut stream: TcpStream){
             }
         }
         (resp_200, user_agent.clone())
+    } else if uri.starts_with("/files") {
+        let file_name = uri.split("/").nth(2).unwrap_or("");
+        match read_file(file_name) {
+            Ok(content) => {
+                (resp_200, content)
+            },
+            Err(_) => {
+                (resp_404, "".to_string())
+            }
+        }
     } else {
         (resp_404, "".to_string())
     };
     
     let response = format!(
-        "{status_line}\r\nContent-Type: text/plain\r\nContent-Length: {len}\r\n\r\n{user_agent}",
+        "{status_line}\r\nContent-Type: text/plain\r\nContent-Length: {len}\r\n\r\n{body}",
         len=body.len(),
-        user_agent=body.clone()
+        body=body.clone()
     );
     stream.write_all(response.as_bytes()).unwrap();
 }
