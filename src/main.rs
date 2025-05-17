@@ -26,7 +26,8 @@ fn main() {
 }
 
 fn read_file(file_name: &str) -> Result<String, Error> {
-    let file_path = format!("/tmp/{file_name}");
+    let file_path = format!("/tmp/data/codecrafters.io/http-server-tester/{file_name}");
+
     fs::read_to_string(file_path)
 }
 
@@ -40,12 +41,14 @@ fn handle_client(mut stream: TcpStream){
 
     let resp_200 = "HTTP/1.1 200 OK";
     let resp_404 = "HTTP/1.1 404 Not Found";
+    let content_type_text = "text/plain";
+    let content_type_octet = "application/octet-stream";
 
-    let (status_line, body) = if uri == "/" {
-        (resp_200, "".to_string())
+    let (status_line, content_type, body) = if uri == "/" {
+        (resp_200, content_type_text, "".to_string())
     } else if uri.starts_with("/echo") {
         let echo = uri.split("/").nth(2).unwrap_or("");
-        (resp_200, echo.to_string())
+        (resp_200, content_type_text, echo.to_string())
     } else if uri.starts_with("/user-agent") {
         let mut user_agent = String::new();
         for line in lines {
@@ -57,24 +60,25 @@ fn handle_client(mut stream: TcpStream){
                 user_agent = line.split_once(": ").unwrap_or(("", "")).1.to_string();
             }
         }
-        (resp_200, user_agent.clone())
+        (resp_200, content_type_text, user_agent.clone())
     } else if uri.starts_with("/files") {
         let file_name = uri.split("/").nth(2).unwrap_or("");
         match read_file(file_name) {
             Ok(content) => {
-                (resp_200, content)
+                (resp_200, content_type_octet, content)
             },
             Err(_) => {
-                (resp_404, "".to_string())
+                (resp_404, content_type_text, "".to_string())
             }
         }
     } else {
-        (resp_404, "".to_string())
+        (resp_404, content_type_text, "".to_string())
     };
     
     let response = format!(
-        "{status_line}\r\nContent-Type: text/plain\r\nContent-Length: {len}\r\n\r\n{body}",
+        "{status_line}\r\nContent-Type: {content_type}\r\nContent-Length: {len}\r\n\r\n{body}",
         len=body.len(),
+        content_type=content_type,
         body=body.clone()
     );
     stream.write_all(response.as_bytes()).unwrap();
