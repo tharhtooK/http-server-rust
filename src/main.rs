@@ -10,23 +10,27 @@ struct Request {
     user_agent: Option<String>,
     body: String,
     file_name: String,
-    headers: HashMap<String, String>
 }
 
 impl Request {
     fn get_http_body(buf_reader: &mut BufReader<&mut TcpStream>, request_line: &String) -> String {
         let mut size = 0;
-        let linesplit = request_line.split("\n");
-        for l in linesplit {
-            if l.starts_with("Content-Length") {
-                let sizeplit = l.split(":");
-                for s in sizeplit {
-                    if !(s.starts_with("Content-Length")) {
-                        size = s.trim().parse::<usize>().unwrap();
-                    }
-                }
-            }
-        }
+        let linesplit = request_line.split("\n")
+                                                .filter_map(|l| 
+                                                    l.split_once(":")
+                                                    .map(|l| (l.0, l.1.trim()))
+                                                    .filter(|l| l.0.starts_with("Content-Length"))
+                                                );
+        // for l in linesplit {
+        //     if l.starts_with("Content-Length") {
+        //         let sizeplit = l.split(":");
+        //         for s in sizeplit {
+        //             if !(s.starts_with("Content-Length")) {
+        //                 size = s.trim().parse::<usize>().unwrap();
+        //             }
+        //         }
+        //     }
+        // }
         let mut buffer = vec![0; size]; 
         buf_reader.read_exact(&mut buffer).unwrap();
         String::from_utf8(buffer).unwrap()
@@ -82,7 +86,6 @@ impl Request {
             http_method: http_method,
             user_agent: user_agent,
             body: body,
-            headers: headers_map,
         }
     }
 }
