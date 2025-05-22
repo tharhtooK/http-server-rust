@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap, fmt::{self, format}, fs, io::{BufRead, BufReader, Error, Read, Write}, net::{TcpListener, TcpStream}, thread
+    collections::HashMap, fmt::{self, format, write}, fs, io::{BufRead, BufReader, Error, Read, Write}, net::{TcpListener, TcpStream}, thread
 };
 #[allow(unused_imports)]
 
@@ -39,7 +39,7 @@ impl fmt::Display for ContentType {
 struct Request {
     uri: String,
     http_method: String,
-    encoding: String,
+    encoding: Vec<String>,
     user_agent: Option<String>,
     echo_path: String,
     body: String,
@@ -110,7 +110,8 @@ impl Request {
         let http_method = Self::get_http_method(&request_line);
         let body = Self::get_http_body(&mut buf_reader, &request_line);
         let headers_map = Self::get_header_map(&request_line);
-        let encoding = headers_map.get("Accept-Encoding").unwrap_or(&"invalid-encoding".to_string()).to_string();
+        let encoding = headers_map.get("Accept-Encoding")
+                                    .map(|e| e.split(",").map(|e| e.trim().to_string()).collect()).unwrap_or(vec![]);
         let user_agent = headers_map.get("User-Agent").map(|v| v.to_string());
         let echo_path = Self::get_echo_path(&uri);
 
@@ -129,15 +130,29 @@ impl Request {
 struct Response {
     status: HttpCode,
     content: ContentType,
-    encoding: String,
+    encoding: Vec<String>,
     body: String,
+}
+
+fn get_valid_encoding(request_encodings: &Vec<String>) -> Option<String>  {
+    let VALID = ["gzip"];
+    let joined = request_encodings
+            .iter()
+            .map(String::as_str)
+            .filter(
+                |e| VALID.contains(e)
+            )
+            .collect::<Vec<_>>()
+            .join(",");
+    (!joined.is_empty()).then(|| joined)
 }
 
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let encoding_content = match self.encoding.as_str() {
-            "gzip" => format!("Content-Encoding: {}\r\n", self.encoding),
-            _ => "".to_string()
+        let encoding = get_valid_encoding(&self.encoding);
+        let encoding_content = match encoding {
+            Some(e) => format!("Content-Encoding: {}\r\n", e),
+            None => "".to_string()
         };
         write!(f, "{status}\r\nContent-Type: {content}\r\n{encoding_content}Content-Length: {len}\r\n\r\n{body}",
             status=self.status,
@@ -176,19 +191,19 @@ fn create_file(file_name: &str, content: &String) -> Result<(), Error> {
     file.expect("File not found!").write_all(content.as_bytes())
 }
 
-fn handle_files_routes(req: &Request) -> Response {
+fn handle_files_routes(req: Request) -> Response {
     match req.http_method.as_str() {
         "POST" => match create_file(&req.file_name, &req.body) {
             Ok(_) => Response {
                 status: HttpCode::Created, 
                 content: ContentType::None, 
-                encoding: req.encoding.to_string(),
+                encoding: req.encoding,
                 body:"".to_string()
             },
             Err(_) => Response {
                 status: HttpCode::NotFound, 
                 content: ContentType::None, 
-                encoding: req.encoding.to_string(),
+                encoding: req.encoding,
                 body:"".to_string()
             }
         },
@@ -196,39 +211,39 @@ fn handle_files_routes(req: &Request) -> Response {
             Ok(content) => Response {
                 status: HttpCode::OK, 
                 content: ContentType::Octet, 
-                encoding: req.encoding.to_string(),
+                encoding: req.encoding,
                 body: content
             },
             Err(_) => Response {
                 status: HttpCode::NotFound, 
                 content: ContentType::Text, 
-                encoding: req.encoding.to_string(),
+                encoding: req.encoding,
                 body: "".to_string()
             }
         }
     }
 }
 
-fn handle_routes(req: &Request) -> Response {
+fn handle_routes(req: Request) -> Response {
     if req.uri == "/" {
         Response {
             status: HttpCode::OK, 
             content: ContentType::Text, 
-            encoding: req.encoding.to_string(),
+            encoding: req.encoding,
             body: "".to_string()
         }
     } else if req.uri.starts_with("/echo") {
         Response {
             status: HttpCode::OK, 
             content: ContentType::Text, 
-            encoding: req.encoding.to_string(),
+            encoding: req.encoding,
             body: req.echo_path.to_string()
         }
     } else if req.uri.starts_with("/user-agent") {
         Response {
             status: HttpCode::OK, 
             content: ContentType::Text, 
-            encoding: req.encoding.to_string(),
+            encoding: req.encoding,
             body: req.user_agent.clone().unwrap()
         }
     } else if req.uri.starts_with("/files") {
@@ -237,7 +252,7 @@ fn handle_routes(req: &Request) -> Response {
         Response {
             status: HttpCode::NotFound, 
             content: ContentType::Text, 
-            encoding: req.encoding.to_string(),
+            encoding: req.encoding,
             body: "".to_string()
         }
     }
@@ -251,8 +266,8 @@ fn handle_client(stream: TcpStream){
         let stream2 = &mut stream;
         req = Request::new(stream2);
     }
-    println!("{req:?}");
-    let response = handle_routes(&req);
+    let resp = get_valid_encoding(&req.encoding);
+    let response = handle_routes(req);
     
     stream.write_all(format!("{response}").as_bytes()).unwrap();
 }
