@@ -5,10 +5,15 @@ mod routers;
 mod utils;
 
 use std::{
-    io::Write,
-    net::{TcpListener, TcpStream}, 
+    io::{Write, Error,},
+    net::{
+        TcpListener, 
+        TcpStream,
+    }, 
     thread,
+    result::Result::{Ok, Err},
 };
+
 use crate::request::Request;
 use crate::routers::handle_routes;
 #[allow(unused_imports)]
@@ -19,29 +24,29 @@ fn main() {
 
     for stream in listener.incoming() {
         match stream {
-            Ok(stream)=> {
-                thread::spawn(|| {
-                    handle_connection(stream);
+            Err(e) => eprintln!("Failed: {}", e),
+            Ok(stream) => {
+                thread::spawn(|| { 
+                    handle_client(stream).unwrap(); 
                 });
-            },
-            Err(e)=> {
-                eprintln!("Failed: {}", e);
             }
         }
     }
 }
 
-fn handle_connection(stream: TcpStream){
+fn handle_client(stream: TcpStream) -> Result<(), Error> {
     println!("accepted new connection");
     let mut stream = stream;
-    let req: Request = {
-        let stream2 = &mut stream;
-        Request::new(stream2)
-    };
-    let response = handle_routes(req);
-    
-    stream.write_all(format!("{response}").as_bytes()).unwrap();
-    (!response.compressed_body.is_none())
-        .then(|| stream.write_all(&response.compressed_body.unwrap()).unwrap());
-    stream.flush().unwrap()
+    loop {
+        let req: Request = {
+            let stream2 = &mut stream;
+            Request::new(stream2)
+        };
+        let response = handle_routes(req);
+        
+        stream.write_all(format!("{response}").as_bytes()).unwrap();
+        (!response.compressed_body.is_none())
+            .then(|| stream.write_all(&response.compressed_body.unwrap()).unwrap());
+        stream.flush().unwrap()
+    }
 }

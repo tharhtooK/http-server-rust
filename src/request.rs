@@ -116,8 +116,6 @@ impl Request {
         let http_method = Self::extract_http_method(&request_line);
         let body = Self::extract_http_body(&mut buf_reader, &request_line);
 
-        println!("====> headers: {:#?}", headers_map);
-
         Self {
             uri,
             http_method,
