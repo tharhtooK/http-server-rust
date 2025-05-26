@@ -1,7 +1,6 @@
 use std::{
-    fs,
-    env,
-    io::{Error, Write,},
+    env, fs,
+    io::{Error, Write},
 };
 
 pub fn get_args() -> Vec<String> {
@@ -18,8 +17,8 @@ pub fn get_directory(args: &[String]) -> String {
                 if let Some(val) = args.next() {
                     dir = val;
                 }
-            },
-            _ => println!("failed to get directory")
+            }
+            _ => println!("failed to get directory"),
         }
     }
     dir

@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::request::Request;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum HttpCode {
@@ -10,11 +10,15 @@ pub enum HttpCode {
 
 impl fmt::Display for HttpCode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match &self {
-            Self::OK => "HTTP/1.1 200 OK".to_string(),
-            Self::Created => "HTTP/1.1 201 Created".to_string(),
-            Self::NotFound => "HTTP/1.1 404 Not Found".to_string(),
-        })
+        write!(
+            f,
+            "{}",
+            match &self {
+                Self::OK => "HTTP/1.1 200 OK".to_string(),
+                Self::Created => "HTTP/1.1 201 Created".to_string(),
+                Self::NotFound => "HTTP/1.1 404 Not Found".to_string(),
+            }
+        )
     }
 }
 
@@ -22,16 +26,20 @@ impl fmt::Display for HttpCode {
 pub enum ContentType {
     None,
     Text,
-    Octet
+    Octet,
 }
 
 impl fmt::Display for ContentType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", match &self {
-            Self::None => String::default(),
-            Self::Text => "text/plain".to_string(),
-            Self::Octet => "application/octet-stream".to_string(),
-        })
+        write!(
+            f,
+            "{}",
+            match &self {
+                Self::None => String::default(),
+                Self::Text => "text/plain".to_string(),
+                Self::Octet => "application/octet-stream".to_string(),
+            }
+        )
     }
 }
 
@@ -48,14 +56,14 @@ pub struct Response {
 
 impl Response {
     pub fn new(req: &Request) -> Response {
-        Response { 
+        Response {
             status: HttpCode::NotFound,
             content: ContentType::Text,
             connection: req.connection.clone(),
             encoding: Some(String::default()),
             content_length: 0,
             body: String::default(),
-            compressed_body: None
+            compressed_body: None,
         }
     }
 
@@ -77,7 +85,7 @@ impl Response {
     pub fn body(mut self, body: String) -> Self {
         self.body = body;
         self.content_length = Self::get_content_length(&self);
-        
+
         self
     }
 
@@ -93,20 +101,23 @@ impl Response {
         let compressed_len = self.compressed_body.iter().flat_map(|s| s).count();
 
         let should_compressed = compressed_len.gt(&0);
-        should_compressed.then(|| compressed_len).or(Some(body_len)).unwrap_or_default()
+        should_compressed
+            .then(|| compressed_len)
+            .or(Some(body_len))
+            .unwrap_or_default()
     }
 
     fn get_encoding_str(&self) -> String {
         match self.encoding {
             Some(ref e) => format!("Content-Encoding: {}\r\n", e),
-            None => String::default()
+            None => String::default(),
         }
     }
 
     fn get_connection_str(&self) -> String {
         match self.connection {
             Some(ref e) => format!("Connection: {}\r\n", e),
-            None => String::default()
+            None => String::default(),
         }
     }
 }

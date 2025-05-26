@@ -1,16 +1,7 @@
+use crate::file_handler::{create_file, get_args, get_directory, read_file};
 use crate::request::Request;
-use crate::file_handler::{
-    get_args,
-    get_directory,
-    create_file, 
-    read_file,
-};
 
-use crate::response::{
-    HttpCode, 
-    ContentType, 
-    Response,
-};
+use crate::response::{ContentType, HttpCode, Response};
 
 fn _create_file(dir: String, req: &Request) -> Response {
     match create_file(dir, &req.file_name, &req.body) {
@@ -43,7 +34,7 @@ fn route_files(req: Request) -> Response {
     let dir = get_directory(&get_args());
     match req.http_method.as_str() {
         "POST" => _create_file(dir, &req),
-        _ => _read_file(dir, &req)
+        _ => _read_file(dir, &req),
     }
 }
 
