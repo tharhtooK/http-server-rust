@@ -10,6 +10,7 @@ use crate::utils::gzip_data;
 pub struct Request {
     pub uri: String,
     pub http_method: String,
+    pub connection: Option<String>,
     pub encoding: Option<String>,
     pub user_agent: Option<String>,
     pub echo_str: String,
@@ -33,11 +34,11 @@ impl Request {
     }
 
     fn get_uri(request_line: &String) -> String {
-        request_line.split_whitespace().nth(1).unwrap_or("").to_string()
+        request_line.split_whitespace().nth(1).map(String::from).unwrap_or_default()
     }
 
     fn extract_http_method(request_line: &String) -> String {
-        request_line.split_whitespace().nth(0).unwrap_or("").to_string()
+        request_line.split_whitespace().nth(0).map(String::from).unwrap_or_default()
     }
 
     fn get_header_map(request_line: &String) -> HashMap<String, String> {
@@ -50,7 +51,7 @@ impl Request {
     }
 
     fn extract_file_name(uri: &String) -> String {
-        uri.split("/").nth(2).unwrap_or("").to_string()
+        uri.split("/").nth(2).map(String::from).unwrap_or_default()
     }
 
     fn get_valid_encoding(headers_map: &HashMap<String, String>) -> (bool, Option<String>)  {
@@ -79,7 +80,11 @@ impl Request {
     }
 
     fn extract_user_agent(headers_map: &HashMap<String, String>) -> Option<String> {
-        headers_map.get("User-Agent").map(|v| v.to_string())
+        headers_map.get("User-Agent").map(String::from)
+    }
+
+    fn extract_connection(headers_map: &HashMap<String, String>) -> Option<String> {
+        headers_map.get("Connection").map(String::from)
     }
 
     pub fn get_compressed_body(&self) -> Option<Vec<u8>> {
@@ -89,11 +94,15 @@ impl Request {
     }
 
     pub fn echo_str(&self) -> String {
-        (!self.should_compress).then(|| self.echo_str.to_string()).unwrap_or("".to_string())
+        (!self.should_compress).then(|| self.echo_str.to_string()).unwrap_or_default()
+    }
+
+    pub fn should_close_conn(&self) -> bool {
+        !self.connection.is_none()
     }
 
     fn extract_echo_str(uri: &String) -> String {
-        uri.split("/").nth(2).unwrap_or("").to_string()
+        uri.split("/").nth(2).map(String::from).unwrap_or_default()
     }
 
     pub fn new(stream: &mut TcpStream) -> Self {
@@ -101,7 +110,7 @@ impl Request {
         
         let mut request_line = String::new();
         loop {
-            let r = buf_reader.read_line(&mut request_line).unwrap();
+            let r = buf_reader.read_line(&mut request_line).unwrap_or_default();
             if r < 3 {
                 break;
             }
@@ -110,6 +119,7 @@ impl Request {
         let headers_map = Self::get_header_map(&request_line);
         let (should_compress, encoding) = Self::get_valid_encoding(&headers_map);
         let user_agent = Self::extract_user_agent(&headers_map);
+        let connection = Self::extract_connection(&headers_map);
 
         let file_name = Self::extract_file_name(&uri);
         let echo_str = Self::extract_echo_str(&uri);
@@ -119,6 +129,7 @@ impl Request {
         Self {
             uri,
             http_method,
+            connection,
             encoding,
             user_agent,
             echo_str,

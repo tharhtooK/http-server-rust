@@ -1,4 +1,5 @@
 use std::fmt;
+use crate::request::Request;
 
 #[derive(Debug)]
 pub enum HttpCode {
@@ -27,7 +28,7 @@ pub enum ContentType {
 impl fmt::Display for ContentType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", match &self {
-            Self::None => "".to_string(),
+            Self::None => String::default(),
             Self::Text => "text/plain".to_string(),
             Self::Octet => "application/octet-stream".to_string(),
         })
@@ -38,6 +39,7 @@ impl fmt::Display for ContentType {
 pub struct Response {
     pub status: HttpCode,
     pub content: ContentType,
+    pub connection: Option<String>,
     pub encoding: Option<String>,
     pub content_length: usize,
     pub body: String,
@@ -45,13 +47,14 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn new() -> Response {
+    pub fn new(req: &Request) -> Response {
         Response { 
             status: HttpCode::NotFound,
             content: ContentType::Text,
-            encoding: Some("".to_string()),
+            connection: req.connection.clone(),
+            encoding: Some(String::default()),
             content_length: 0,
-            body: "".to_string(),
+            body: String::default(),
             compressed_body: None
         }
     }
@@ -90,13 +93,20 @@ impl Response {
         let compressed_len = self.compressed_body.iter().flat_map(|s| s).count();
 
         let should_compressed = compressed_len.gt(&0);
-        should_compressed.then(|| compressed_len).or(Some(body_len)).unwrap()
+        should_compressed.then(|| compressed_len).or(Some(body_len)).unwrap_or_default()
     }
 
     fn get_encoding_str(&self) -> String {
         match self.encoding {
             Some(ref e) => format!("Content-Encoding: {}\r\n", e),
-            None => "".to_string()
+            None => String::default()
+        }
+    }
+
+    fn get_connection_str(&self) -> String {
+        match self.connection {
+            Some(ref e) => format!("Connection: {}\r\n", e),
+            None => String::default()
         }
     }
 }
@@ -104,8 +114,10 @@ impl Response {
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let encoding_content = self.get_encoding_str();
+        let connection = self.get_connection_str();
 
-        write!(f, "{status}\r\nContent-Type: {content}\r\n{encoding_content}Content-Length: {len}\r\n\r\n{body}",
+        write!(
+            f, "{status}\r\nContent-Type: {content}\r\n{encoding_content}Content-Length: {len}\r\n{connection}\r\n{body}",
             status=self.status,
             len=self.content_length,
             content=self.content,

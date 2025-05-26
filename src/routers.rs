@@ -1,5 +1,7 @@
 use crate::request::Request;
 use crate::file_handler::{
+    get_args,
+    get_directory,
     create_file, 
     read_file,
 };
@@ -10,12 +12,12 @@ use crate::response::{
     Response,
 };
 
-fn _create_file(req: &Request) -> Response {
-    match create_file(&req.file_name, &req.body) {
-        Err(_) => Response::new(),
+fn _create_file(dir: String, req: &Request) -> Response {
+    match create_file(dir, &req.file_name, &req.body) {
+        Err(_) => Response::new(req),
         Ok(_) => {
             let body = req.body.to_string();
-            Response::new()
+            Response::new(req)
                 .status(HttpCode::Created)
                 .content(ContentType::None)
                 .body(body)
@@ -23,12 +25,12 @@ fn _create_file(req: &Request) -> Response {
     }
 }
 
-fn _read_file(req: &Request) -> Response {
-    match read_file(&req.file_name) {
-        Err(_) => Response::new(),
+fn _read_file(dir: String, req: &Request) -> Response {
+    match read_file(dir, &req.file_name) {
+        Err(_) => Response::new(req),
         Ok(content) => {
             let encoding = req.encoding.to_owned();
-            Response::new()
+            Response::new(req)
                 .status(HttpCode::OK)
                 .content(ContentType::Octet)
                 .encoding(encoding)
@@ -38,9 +40,10 @@ fn _read_file(req: &Request) -> Response {
 }
 
 fn route_files(req: Request) -> Response {
+    let dir = get_directory(&get_args());
     match req.http_method.as_str() {
-        "POST" => _create_file(&req),
-        _ => _read_file(&req)
+        "POST" => _create_file(dir, &req),
+        _ => _read_file(dir, &req)
     }
 }
 
@@ -49,7 +52,7 @@ fn route_echo(req: &Request) -> Response {
     let echo_str = req.echo_str();
     let compressed = req.get_compressed_body();
 
-    Response::new()
+    Response::new(req)
         .status(HttpCode::OK)
         .encoding(encoding)
         .body(echo_str)
@@ -57,14 +60,14 @@ fn route_echo(req: &Request) -> Response {
 }
 
 fn route_user_agent(req: &Request) -> Response {
-    Response::new()
+    Response::new(req)
         .status(HttpCode::OK)
         .body(req.user_agent.clone().unwrap())
 }
 
 pub fn handle_routes(req: Request) -> Response {
     if req.uri == "/" {
-        Response::new().status(HttpCode::OK)
+        Response::new(&req).status(HttpCode::OK)
     } else if req.uri.starts_with("/echo") {
         route_echo(&req)
     } else if req.uri.starts_with("/files") {
@@ -72,6 +75,6 @@ pub fn handle_routes(req: Request) -> Response {
     } else if req.uri.starts_with("/user-agent") {
         route_user_agent(&req)
     } else {
-        Response::new()
+        Response::new(&req)
     }
 }

@@ -5,7 +5,7 @@ mod routers;
 mod utils;
 
 use std::{
-    io::{Write, Error,},
+    io::Write,
     net::{
         TcpListener, 
         TcpStream,
@@ -27,14 +27,14 @@ fn main() {
             Err(e) => eprintln!("Failed: {}", e),
             Ok(stream) => {
                 thread::spawn(|| { 
-                    handle_client(stream).unwrap(); 
+                    handle_client(stream); 
                 });
             }
         }
     }
 }
 
-fn handle_client(stream: TcpStream) -> Result<(), Error> {
+fn handle_client(stream: TcpStream){
     println!("accepted new connection");
     let mut stream = stream;
     loop {
@@ -42,11 +42,17 @@ fn handle_client(stream: TcpStream) -> Result<(), Error> {
             let stream2 = &mut stream;
             Request::new(stream2)
         };
+        let conn_closed = req.should_close_conn();
         let response = handle_routes(req);
         
-        stream.write_all(format!("{response}").as_bytes()).unwrap();
+        stream.write_all(format!("{response}").as_bytes()).unwrap_or_default();
         (!response.compressed_body.is_none())
             .then(|| stream.write_all(&response.compressed_body.unwrap()).unwrap());
+
+        if conn_closed {
+            break;
+        }
+
         stream.flush().unwrap()
     }
 }
