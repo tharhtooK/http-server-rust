@@ -1,38 +1,185 @@
-[![progress-banner](https://backend.codecrafters.io/progress/http-server/a1ec75c5-9848-4fa1-81b4-5686a1098e34)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
+# HTTP Server From Scratch
 
-This is a starting point for Rust solutions to the
-["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview).
+A small HTTP server I built from scratch using TCP sockets as part of the CodeCrafters HTTP Server challenge.
 
-[HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
-protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
-that is capable of serving multiple clients.
+The project handles basic HTTP/1.1 requests, parses headers and request bodies manually, serves files, supports concurrent connections, gzip compression, and persistent connections.
 
-Along the way you'll learn about TCP servers,
-[HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
-and more.
+I built this to better understand what happens behind web frameworks, especially how requests, responses, headers, and TCP connections actually work at a lower level.
 
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
+## What this project does
 
-# Passing the first stage
+This server can handle basic HTTP requests and respond like a real web server.
 
-The entry point for your HTTP server implementation is in `src/main.rs`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
+Some of the features include:
 
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
+- Binding to a TCP port
+- Accepting incoming client connections
+- Parsing HTTP request lines
+- Reading HTTP headers
+- Handling `GET` requests
+- Handling `POST` requests
+- Returning plain text responses
+- Returning files from a directory
+- Reading request bodies
+- Supporting multiple concurrent connections
+- Supporting gzip compression
+- Handling persistent connections
+- Closing connections based on HTTP headers
+
+## Why I built this
+
+I wanted to understand how HTTP works at a lower level.
+
+Usually when building backend apps, a framework hides a lot of details. This project helped me understand what actually happens before the request reaches the application layer.
+
+For example:
+
+- How a TCP server listens for connections
+- How HTTP messages are structured
+- How headers are parsed
+- How request bodies are read
+- How files are served over HTTP
+- How multiple clients can connect at the same time
+- How compression is negotiated using headers
+- How persistent connections work
+
+## Features implemented
+
+### Basic HTTP response
+
+The server can return a simple `200 OK` response.
+
+Example:
+
+```http
+HTTP/1.1 200 OK
 ```
 
-Time to move on to the next stage!
+### URL path handling
 
-# Stage 2 & beyond
+The server can extract the path from the request line.
 
-Note: This section is for stages 2 and beyond.
+For example:
 
-1. Ensure you have `cargo (1.85)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main.rs`. This command compiles your Rust project, so it might be slow
-   the first time you run it. Subsequent runs will be fast.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+```http
+GET /hello HTTP/1.1
+```
+
+The server can read `/hello` and use it to decide what response to return.
+
+### Response body
+
+The server can return a body with the correct `Content-Length` and `Content-Type` headers.
+
+Example:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 5
+
+hello
+```
+
+### Header parsing
+
+The server reads and parses request headers like:
+
+```http
+User-Agent: curl/7.64.1
+Accept-Encoding: gzip
+Connection: close
+```
+
+This is used for features like reading headers, compression, and connection handling.
+
+### Concurrent connections
+
+The server supports multiple clients connecting at the same time.
+
+This was one of the more important parts because a real server should not block every other request just because one client is connected.
+
+### File serving
+
+The server can return files from a given directory.
+
+Example request:
+
+```http
+GET /files/example.txt HTTP/1.1
+```
+
+If the file exists, the server returns the file content.
+
+If the file does not exist, it returns:
+
+```http
+HTTP/1.1 404 Not Found
+```
+
+### POST request body
+
+The server can read the request body from a `POST` request and write it into a file.
+
+Example:
+
+```http
+POST /files/test.txt HTTP/1.1
+Content-Length: 11
+
+hello world
+```
+
+### Gzip compression
+
+The server supports gzip compression when the client sends:
+
+```http
+Accept-Encoding: gzip
+```
+
+If gzip is supported, the response body is compressed and the server includes:
+
+```http
+Content-Encoding: gzip
+```
+
+### Persistent connections
+
+The server supports persistent HTTP connections, meaning the same TCP connection can be used for more than one request.
+
+It also handles connection closure when the client sends:
+
+```http
+Connection: close
+```
+
+## What I learned
+
+This project helped me understand backend development from a lower level.
+
+The most useful parts for me were:
+
+- HTTP is basically text over TCP
+- Headers matter a lot
+- `Content-Length` is important for reading request bodies correctly
+- A server needs to be careful about blocking connections
+- File serving needs proper error handling
+- Compression depends on what the client says it accepts
+- Persistent connections make request parsing more complicated because one connection can contain multiple requests
+
+## Tech used
+
+- TCP sockets
+- HTTP/1.1
+- Multithreading / concurrency
+- File I/O
+- Gzip compression
+
+## Why this matters
+
+Even though this is a small project, it connects directly to backend engineering.
+
+Most backend work happens at a higher level, but understanding HTTP, sockets, headers, request bodies, and connection handling makes debugging APIs and production systems easier.
+
+This project gave me a clearer picture of what web frameworks are doing behind the scenes.
